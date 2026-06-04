@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>房屋租赁管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+    <style>
+        body { background: #f4f7fb; }
+        .hero { background: linear-gradient(135deg, #1d4ed8, #0ea5e9); color: #fff; border-radius: 20px; }
+        .card-shadow { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08); border: 0; border-radius: 18px; }
+        .chart-box { height: 360px; }
+        .metric { font-size: 2rem; font-weight: 700; }
+        .table-wrap { max-height: 560px; overflow: auto; }
+        .badge-status { font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+<div class="container py-4 py-lg-5">
+    <section class="hero p-4 p-lg-5 mb-4">
+        <div class="row align-items-center g-3">
+            <div class="col-lg-8">
+                <h1 class="display-6 fw-bold mb-2">房屋租赁管理系统</h1>
+                <p class="mb-0 opacity-75">基于 HBase 大数据存储 + Java Web 的租赁订单分析仪表盘</p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <div class="fs-6">订单完成率</div>
+                <div class="fs-3 fw-bold" id="completionRate">--</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="row g-3 mb-4" id="summary-cards"></section>
+
+    <section class="row g-4 mb-4">
+        <div class="col-lg-6"><div class="card card-shadow p-3"><h5>房型受欢迎度</h5><div id="roomPopularity" class="chart-box"></div></div></div>
+        <div class="col-lg-6"><div class="card card-shadow p-3"><h5>支付方式占比</h5><div id="paymentShare" class="chart-box"></div></div></div>
+        <div class="col-lg-6"><div class="card card-shadow p-3"><h5>月度完成订单趋势</h5><div id="monthlyTrend" class="chart-box"></div></div></div>
+        <div class="col-lg-6"><div class="card card-shadow p-3"><h5>房型租金统计</h5><div id="rentStats" class="chart-box"></div></div></div>
+        <div class="col-lg-6"><div class="card card-shadow p-3"><h5>租期偏好分析（短租 &lt;90天 / 长租 ≥90天）</h5><div id="leasePreference" class="chart-box"></div></div></div>
+    </section>
+
+    <section class="card card-shadow p-3 p-lg-4">
+        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">订单明细</h5>
+            <div id="tableSummary" class="text-secondary small"></div>
+        </div>
+        <div class="row g-2 mb-3">
+            <div class="col-md-4"><input id="searchInput" class="form-control" placeholder="搜索订单号/租客/房型/房源号"></div>
+            <div class="col-md-3">
+                <select id="statusFilter" class="form-select">
+                    <option value="">全部状态</option>
+                    <option value="完成">完成</option>
+                    <option value="取消">取消</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="roomTypeFilter" class="form-select">
+                    <option value="">全部房型</option>
+                    <option value="一室一厅">一室一厅</option>
+                    <option value="一室两厅">一室两厅</option>
+                    <option value="两室一厅">两室一厅</option>
+                    <option value="两室两厅">两室两厅</option>
+                    <option value="三室两厅">三室两厅</option>
+                    <option value="四室两厅">四室两厅</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select id="pageSizeSelect" class="form-select">
+                    <option value="10">10条/页</option>
+                    <option value="20" selected>20条/页</option>
+                    <option value="50">50条/页</option>
+                </select>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light sticky-top">
+                <tr>
+                    <th>订单编号</th><th>房源</th><th>房型</th><th>面积</th>
+                    <th>租客</th><th>联系方式</th><th>入住</th><th>退房</th>
+                    <th>租期</th><th>租金</th><th>押金</th><th>支付方式</th><th>状态</th>
+                </tr>
+                </thead>
+                <tbody id="ordersTableBody"></tbody>
+            </table>
+        </div>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+            <div id="paginationInfo" class="text-secondary small"></div>
+            <div class="btn-group">
+                <button id="prevPageBtn" class="btn btn-outline-primary btn-sm">上一页</button>
+                <button id="nextPageBtn" class="btn btn-outline-primary btn-sm">下一页</button>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    var curPage = 1, curSize = 20, totalPages = 0;
+    var ctx = location.pathname.replace(/\/[^\/]*$/, '/');
+
+    fetch(ctx + 'api/dashboard').then(function(r){return r.json();}).then(function(d){
+        var s = d.summary;
+        var rate = s.completionRate + '%';
+        document.getElementById('completionRate').textContent = rate;
+        var cards = [
+            ['订单总数', s.totalOrders],
+            ['已完成', s.completedOrders],
+            ['已取消', s.canceledOrders],
+            ['完成率', rate]
+        ];
+        document.getElementById('summary-cards').innerHTML = cards.map(function(c){
+            return '<div class="col-6 col-xl-3"><div class="card card-shadow h-100 p-3">'
+                + '<div class="text-secondary">'+c[0]+'</div><div class="metric">'+c[1]+'</div></div></div>';
+        }).join('');
+        drawBar('roomPopularity', d.roomPopularity);
+        drawPie('paymentShare', d.paymentShare);
+        drawLine('monthlyTrend', d.monthlyTrend);
+        drawRent('rentStats', d.rentStats);
+        drawLeasePreference('leasePreference', d.leasePreference);
+    });
+
+    document.getElementById('searchInput').addEventListener('input', debounce(function(){curPage=1;loadOrders();},300));
+    document.getElementById('statusFilter').addEventListener('change', function(){curPage=1;loadOrders();});
+    document.getElementById('roomTypeFilter').addEventListener('change', function(){curPage=1;loadOrders();});
+    document.getElementById('pageSizeSelect').addEventListener('change', function(){curPage=1;curSize=parseInt(this.value);loadOrders();});
+    document.getElementById('prevPageBtn').addEventListener('click', function(){if(curPage>1){curPage--;loadOrders();}});
+    document.getElementById('nextPageBtn').addEventListener('click', function(){if(curPage<totalPages){curPage++;loadOrders();}});
+
+    loadOrders();
+
+    function loadOrders(){
+        var kw=encodeURIComponent(document.getElementById('searchInput').value||'');
+        var st=encodeURIComponent(document.getElementById('statusFilter').value||'');
+        var rt=encodeURIComponent(document.getElementById('roomTypeFilter').value||'');
+        fetch(ctx + 'api/orders?page='+curPage+'&pageSize='+curSize+'&keyword='+kw+'&status='+st+'&roomType='+rt)
+        .then(function(r){return r.json();}).then(function(d){
+            totalPages=d.totalPages||0;
+            document.getElementById('tableSummary').innerText='共 '+d.totalRecords+' 条';
+            document.getElementById('paginationInfo').innerText='第 '+d.page+' / '+Math.max(d.totalPages,1)+' 页';
+            document.getElementById('prevPageBtn').disabled=d.page<=1;
+            document.getElementById('nextPageBtn').disabled=d.totalPages===0||d.page>=d.totalPages;
+            document.getElementById('ordersTableBody').innerHTML=(d.records||[]).map(function(o){
+                var sc=o.status==='完成'?'success':'secondary';
+                return '<tr><td>'+o.orderId+'</td><td>'+o.houseId+'</td><td>'+o.roomType+'</td><td>'+o.area+'</td>'
+                    +'<td>'+o.tenantName+'</td><td>'+o.contact+'</td><td>'+o.checkInDate+'</td><td>'+o.checkOutDate+'</td>'
+                    +'<td>'+o.leaseDays+'</td><td>'+o.rent+'</td><td>'+o.deposit+'</td><td>'+o.paymentMethod+'</td>'
+                    +'<td><span class="badge bg-'+sc+' badge-status">'+o.status+'</span></td></tr>';
+            }).join('');
+        });
+    }
+
+    function drawBar(id,m){
+        var c=echarts.init(document.getElementById(id));
+        var k=Object.keys(m||{});
+        c.setOption({tooltip:{},xAxis:{type:'category',data:k},yAxis:{type:'value'},
+            series:[{type:'bar',data:k.map(function(x){return m[x];}),itemStyle:{color:'#2563eb'}}]});
+        window.addEventListener('resize',function(){c.resize();});
+    }
+    function drawPie(id,m){
+        var c=echarts.init(document.getElementById(id));
+        var s=Object.keys(m||{}).map(function(k){return{name:k,value:m[k]};});
+        c.setOption({tooltip:{trigger:'item'},series:[{type:'pie',radius:['35%','70%'],data:s}]});
+        window.addEventListener('resize',function(){c.resize();});
+    }
+    function drawLeasePreference(id,m){
+        if(!m)return;
+        var c=echarts.init(document.getElementById(id));
+        c.setOption({tooltip:{trigger:'item',formatter:'{b}: {c} ({d}%)'},
+            legend:{bottom:'5%',data:['短租(<90天)','长租(≥90天)']},
+            series:[{type:'pie',radius:['40%','70%'],
+                label:{formatter:'{b}\n{d}%'},
+                data:[{value:m.shortTerm,name:'短租(<90天)',itemStyle:{color:'#f59e0b'}},
+                      {value:m.longTerm,name:'长租(≥90天)',itemStyle:{color:'#10b981'}}]
+            }]
+        });
+        window.addEventListener('resize',function(){c.resize();});
+    }
+    function drawLine(id,m){
+        var c=echarts.init(document.getElementById(id));
+        var k=Object.keys(m||{});
+        c.setOption({tooltip:{},xAxis:{type:'category',data:k},yAxis:{type:'value'},
+            series:[{type:'line',smooth:true,data:k.map(function(x){return m[x];}),itemStyle:{color:'#0ea5e9'}}]});
+        window.addEventListener('resize',function(){c.resize();});
+    }
+    function drawRent(id,m){
+        var c=echarts.init(document.getElementById(id));
+        var k=Object.keys(m||{});
+        c.setOption({tooltip:{},legend:{data:['最低','平均','最高']},
+            xAxis:{type:'category',data:k},yAxis:{type:'value'},series:[
+            {name:'最低',type:'bar',data:k.map(function(x){return m[x].min;})},
+            {name:'平均',type:'bar',data:k.map(function(x){return m[x].avg;})},
+            {name:'最高',type:'bar',data:k.map(function(x){return m[x].max;})}
+        ]});
+        window.addEventListener('resize',function(){c.resize();});
+    }
+    function debounce(fn,d){
+        var t=null;return function(){var a=arguments,c=this;clearTimeout(t);t=setTimeout(function(){fn.apply(c,a);},d);};
+    }
+</script>
+</body>
+</html>
