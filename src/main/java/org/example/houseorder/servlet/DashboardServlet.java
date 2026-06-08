@@ -56,7 +56,7 @@ public class DashboardServlet extends HttpServlet {
         String keyword = req.getParameter("keyword");
 
         DashboardService svc = new DashboardService(orders);
-        Map<String, Object> result = svc.getOrdersPage(page, size, status, roomType, keyword);
+        Map<String, Object> result = svc.getOrdersPage(page, size, keyword, status, roomType);
 
         resp.setContentType("application/json;charset=UTF-8");
         PrintWriter out = resp.getWriter();
