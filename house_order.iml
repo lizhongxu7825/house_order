@@ -147,5 +147,6 @@
         <SOURCES />
       </library>
     </orderEntry>
+    <orderEntry type="library" name="hbase-mapreduce-2.2.4" level="project" />
   </component>
 </module>
