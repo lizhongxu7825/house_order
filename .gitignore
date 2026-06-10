@@ -1,8 +1,15 @@
 target/
+build/
+out/
 
-.idea/workspace.xml
-.idea/shelf/
+.idea/
 *.iws
 *.ipr
+*.iml
 
 .DS_Store
+Thumbs.db
+
+*.class
+*.war
+*.ear
