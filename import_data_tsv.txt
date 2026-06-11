@@ -1,0 +1,82 @@
+=====================================
+房屋租赁管理系统 - 数据导入说明
+=====================================
+
+一、使用 HBase 内置 ImportTsv 工具导入数据
+-------------------------------------
+
+前置条件：
+1. 虚拟机已启动（Hadoop + HBase + ZooKeeper）
+2. CSV 文件已上传到 HDFS
+
+步骤 1：上传 CSV 文件到 HDFS
+  hdfs dfs -mkdir -p /input
+  hdfs dfs -put /path/to/8.house_order_data.csv /input/
+
+步骤 2：执行 ImportTsv 导入命令
+  hbase org.apache.hadoop.hbase.mapreduce.ImportTsv \
+    -Dimporttsv.separator="," \
+    -Dimporttsv.skip.header.line.count=1 \
+    -Dimporttsv.columns=HBASE_ROW_KEY,info:houseId,info:roomType,info:area,info:tenantName,info:contact,detail:checkInDate,detail:checkOutDate,detail:leaseDays,detail:rent,detail:deposit,detail:paymentMethod,detail:status \
+    house_order \
+    /input/8.house_order_data.csv
+
+步骤 3：验证导入结果
+  hbase shell
+  count 'house_order'
+  # 应显示 5000
+
+
+二、参数说明
+-------------------------------------
+
+-Dimporttsv.separator=","
+  CSV 文件使用逗号作为分隔符
+
+-Dimporttsv.skip.header.line.count=1
+  跳过 CSV 文件的第一行（表头）
+
+-Dimporttsv.columns=HBASE_ROW_KEY,info:houseId,...
+  将 CSV 的每一列映射到 HBase 的列族和列名：
+  - 第 1 列 → HBASE_ROW_KEY（订单编号作为行键）
+  - 第 2 列 → info:houseId（房源编号）
+  - 第 3 列 → info:roomType（房间类型）
+  - 第 4 列 → info:area（面积）
+  - 第 5 列 → info:tenantName（租客姓名）
+  - 第 6 列 → info:contact（联系方式）
+  - 第 7 列 → detail:checkInDate（入住日期）
+  - 第 8 列 → detail:checkOutDate（退房日期）
+  - 第 9 列 → detail:leaseDays（租期）
+  - 第 10 列 → detail:rent（租金）
+  - 第 11 列 → detail:deposit（押金）
+  - 第 12 列 → detail:paymentMethod（支付方式）
+  - 第 13 列 → detail:status（状态）
+
+house_order
+  目标 HBase 表名
+
+/input/8.house_order_data.csv
+  HDFS 上的 CSV 文件路径
+
+
+三、HBase 表结构
+-------------------------------------
+
+表名：house_order
+列族：info（房源信息）、detail（订单详情）
+
+info 列族：
+  - houseId：房源编号
+  - roomType：房间类型
+  - area：面积
+  - tenantName：租客姓名
+  - contact：联系方式
+
+detail 列族：
+  - checkInDate：入住日期
+  - checkOutDate：退房日期
+  - leaseDays：租期（天）
+  - rent：租金
+  - deposit：押金
+  - paymentMethod：支付方式
+  - status：状态
