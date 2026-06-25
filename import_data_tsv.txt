@@ -18,12 +18,12 @@
     -Dimporttsv.separator="," \
     -Dimporttsv.skip.header.line.count=1 \
     -Dimporttsv.columns=HBASE_ROW_KEY,info:houseId,info:roomType,info:area,info:tenantName,info:contact,detail:checkInDate,detail:checkOutDate,detail:leaseDays,detail:rent,detail:deposit,detail:paymentMethod,detail:status \
-    house_order \
+    house_order:orders \
     /input/8.house_order_data.csv
 
 步骤 3：验证导入结果
   hbase shell
-  count 'house_order'
+  count 'house_order:orders'
   # 应显示 5000
 
 
@@ -52,7 +52,7 @@
   - 第 12 列 → detail:paymentMethod（支付方式）
   - 第 13 列 → detail:status（状态）
 
-house_order
+house_order:orders
   目标 HBase 表名
 
 /input/8.house_order_data.csv
@@ -62,7 +62,7 @@ house_order
 三、HBase 表结构
 -------------------------------------
 
-表名：house_order
+表名：house_order:orders
 列族：info（房源信息）、detail（订单详情）
 
 info 列族：
