@@ -57,9 +57,11 @@ public class HBaseOrderDAO implements AutoCloseable {
     }
 
     private HouseOrder toOrder(Result r) {
+        String rowKey = Bytes.toString(r.getRow());
+        if ("订单编号".equals(rowKey)) return null;
         try {
             return new HouseOrder(
-                    Bytes.toString(r.getRow()),
+                    rowKey,
                     val(r, CF_INFO, "houseId"),
                     val(r, CF_INFO, "roomType"),
                     Double.parseDouble(val(r, CF_INFO, "area")),
@@ -74,7 +76,7 @@ public class HBaseOrderDAO implements AutoCloseable {
                     val(r, CF_DETAIL, "status")
             );
         } catch (Exception e) {
-            System.err.println("[HBase] 解析行数据失败 row=" + Bytes.toString(r.getRow()) + ": " + e.getMessage());
+            System.err.println("[HBase] 解析行数据失败 row=" + rowKey + ": " + e.getMessage());
             return null;
         }
     }
