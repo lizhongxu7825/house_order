@@ -2,33 +2,59 @@
 房屋租赁管理系统 - 数据导入说明
 =====================================
 
-一、使用 HBase 内置 ImportTsv 工具导入数据
+一、前置配置（首次使用时执行一次）
 -------------------------------------
 
-前置条件：
 1. 虚拟机已启动（Hadoop + HBase + ZooKeeper）
 
-步骤 1：在 Windows 命令行上传 CSV 到 HDFS
-  d:
-  cd d:\house_order
-  hdfs dfs -mkdir -p /input
-  hdfs dfs -put src\main\resources\8.house_order_data.csv /input/8.house_order_data.csv
+2. 配置 mapred-site.xml（解决 MRAppMaster 找不到的问题）
+   编辑 $HADOOP_HOME/etc/hadoop/mapred-site.xml，在 <configuration> 中添加：
 
-步骤 2：在虚拟机上创建 HBase 表
+   <property>
+       <name>yarn.app.mapreduce.am.env</name>
+       <value>HADOOP_MAPRED_HOME=/training/hadoop-3.3.0</value>
+   </property>
+   <property>
+       <name>mapreduce.map.env</name>
+       <value>HADOOP_MAPRED_HOME=/training/hadoop-3.3.0</value>
+   </property>
+   <property>
+       <name>mapreduce.reduce.env</name>
+       <value>HADOOP_MAPRED_HOME=/training/hadoop-3.3.0</value>
+   </property>
+
+   注意：将路径替换为实际的 Hadoop 安装路径（echo $HADOOP_HOME 查看）
+
+3. 修改配置后重启 YARN：
+   stop-yarn.sh
+   start-yarn.sh
+
+
+二、导入数据步骤
+-------------------------------------
+
+步骤 1：上传 CSV 文件到虚拟机
+  使用 MobaXterm 将本地的 8.house_order_data.csv 拖拽上传到虚拟机 /tmp/ 目录
+
+步骤 2：从虚拟机本地上传到 HDFS
+  hdfs dfs -mkdir -p /input
+  hdfs dfs -put /tmp/8.house_order_data.csv /input/8.house_order_data.csv
+
+步骤 3：在虚拟机上创建 HBase 表
   hbase shell
   create_namespace 'house_order'
   create 'house_order:orders', {NAME => 'info', VERSIONS => 1}, {NAME => 'detail', VERSIONS => 1}
   exit
 
-步骤 3：在虚拟机上执行 ImportTsv 导入命令
+步骤 4：在虚拟机上执行 ImportTsv 导入命令
   hbase org.apache.hadoop.hbase.mapreduce.ImportTsv \
     -Dimporttsv.separator="," \
     -Dimporttsv.skip.header.line.count=1 \
     -Dimporttsv.columns=HBASE_ROW_KEY,info:houseId,info:roomType,info:area,info:tenantName,info:contact,detail:checkInDate,detail:checkOutDate,detail:leaseDays,detail:rent,detail:deposit,detail:paymentMethod,detail:status \
-    house_order:orders \
+    'house_order:orders' \
     /input/8.house_order_data.csv
 
-步骤 4：在虚拟机上验证导入结果
+步骤 5：在虚拟机上验证导入结果
   hbase shell
   count 'house_order:orders'
   # 应显示 5000

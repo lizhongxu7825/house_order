@@ -23,12 +23,13 @@
 1. 将项目打包为 war 文件
 2. 复制 war 文件到 Tomcat 的 webapps 目录
 3. 启动 Tomcat
-4. 浏览器访问 http://localhost:8080/house_order/
+4. 浏览器访问 http://localhost:8080/house-order/
 
 
 三、前提条件
 -------------------------------------
 
 1. 虚拟机已启动（Hadoop + HBase + ZooKeeper）
-2. HBase 中已有数据（通过 ImportTsv 导入）
+2. HBase 中已有数据（通过 ImportTsv 导入，详见 import_data_tsv.txt）
 3. 虚拟机 IP：192.168.227.129
+4. mapred-site.xml 已配置 HADOOP_MAPRED_HOME（详见 import_data_tsv.txt 前置配置）
