@@ -7,13 +7,20 @@
 
 前置条件：
 1. 虚拟机已启动（Hadoop + HBase + ZooKeeper）
-2. CSV 文件已上传到 HDFS
 
-步骤 1：上传 CSV 文件到 HDFS
+步骤 1：在 Windows 命令行上传 CSV 到 HDFS
+  d:
+  cd d:\house_order
   hdfs dfs -mkdir -p /input
-  hdfs dfs -put /path/to/8.house_order_data.csv /input/
+  hdfs dfs -put src\main\resources\8.house_order_data.csv /input/8.house_order_data.csv
 
-步骤 2：执行 ImportTsv 导入命令
+步骤 2：在虚拟机上创建 HBase 表
+  hbase shell
+  create_namespace 'house_order'
+  create 'house_order:orders', {NAME => 'info', VERSIONS => 1}, {NAME => 'detail', VERSIONS => 1}
+  exit
+
+步骤 3：在虚拟机上执行 ImportTsv 导入命令
   hbase org.apache.hadoop.hbase.mapreduce.ImportTsv \
     -Dimporttsv.separator="," \
     -Dimporttsv.skip.header.line.count=1 \
@@ -21,7 +28,7 @@
     house_order:orders \
     /input/8.house_order_data.csv
 
-步骤 3：验证导入结果
+步骤 4：在虚拟机上验证导入结果
   hbase shell
   count 'house_order:orders'
   # 应显示 5000
